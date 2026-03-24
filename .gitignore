@@ -1,1 +1,25 @@
-node_modules
+# Node modules (VERY important)
+node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build output
+dist/
+build/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment variables (if any)
+.env
+
+# IDE/editor files
+.vscode/
+.idea/
+
+# Misc
+*.log
