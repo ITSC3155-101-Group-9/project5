@@ -2,13 +2,11 @@
 
 ## Product Owner
 
-Group 9
+Shiv
 ## Scrum Master
 
 Jubin
 ## Developers
 
-* Jubin
-* Shiv
 * Sunny
 * Justin Lee
