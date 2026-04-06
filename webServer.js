@@ -151,13 +151,14 @@ app.get("/user/list", function (request, response) {
  */
 app.get("/user/:id", function (request, response) {
   const id = request.params.id;
-  const user = models.userModel(id);
-  if (user === null) {
-    console.log("User with _id:" + id + " not found.");
-    response.status(400).send("Not found");
-    return;
-  }
-  response.status(200).send(user);
+  User.findById(id, function (err, user) {   // added this
+    if (err || !user) {
+      console.log("User with _id:" + id + " not found.");
+      response.status(400).send("Not found");
+      return;
+    }
+    response.status(200).send(user);
+  }); 
 });
 
 /**
@@ -165,13 +166,54 @@ app.get("/user/:id", function (request, response) {
  */
 app.get("/photosOfUser/:id", function (request, response) {
   const id = request.params.id;
-  const photos = models.photoOfUserModel(id);
-  if (photos.length === 0) {
-    console.log("Photos for user with _id:" + id + " not found.");
-    response.status(400).send("Not found");
-    return;
-  }
-  response.status(200).send(photos);
+  
+  User.findById(id, function (err, user) {
+    if (err || !user) {
+      console.log("User with _id:" + id + " not found.");
+      response.status(400).send("Not found");
+      return;
+    }
+
+    Photo.find({ user_id: id }, function (err, photos) {
+      if (err) {
+        response.status(500).send(err);
+        return;
+      }
+
+      if (!photos || photos.length === 0) {
+        response.status(200).send([]);
+        return;
+      }
+
+      let result = [];
+
+      photos.forEach(function (photo) {
+        let photoObj = JSON.parse(JSON.stringify(photo));
+
+        let promises = photoObj.comments.map(function (comment) {
+          return new Promise(function (resolve) {
+            User.findById(comment.user_id, function (err, user) {
+              if (user) {
+                comment.user = {
+                  _id: user._id,
+                  first_name: user.first_name,
+                  last_name: user.last_name,
+                };
+              }
+              delete comment.user_id;
+              resolve();
+            });
+          });
+        });
+        Promise.all(promises).then(function () {
+          result.push(photoObj);
+          if (result.length === photos.length) {
+            response.status(200).send(result);
+          }
+        });
+      });
+    });
+  });
 });
 
 const server = app.listen(3000, function () {
