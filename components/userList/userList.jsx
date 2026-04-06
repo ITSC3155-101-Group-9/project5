@@ -5,12 +5,13 @@ import {
   ListItem,
   ListItemText,
   Typography,
-}
-from '@mui/material';
+} from '@mui/material';
+import { Link } from 'react-router-dom'; // ✅ YOU WERE MISSING THIS
+import axios from 'axios'; // ✅ NEW
 import './userList.css';
 
 /**
- * Define UserList, a React component of project #5
+ * Define UserList, a React component of project #6
  */
 class UserList extends React.Component {
   constructor(props) {
@@ -21,9 +22,17 @@ class UserList extends React.Component {
   }
 
   componentDidMount() {
-    // Get users from model (Phase 1)
-    const userList = window.models.userListModel();
-    this.setState({ users: userList });
+    // ❌ OLD:
+    // const userList = window.models.userListModel();
+
+    // ✅ NEW: Fetch from backend
+    axios.get('/user/list')
+      .then((response) => {
+        this.setState({ users: response.data });
+      })
+      .catch((error) => {
+        console.error('Error fetching user list:', error);
+      });
   }
 
   render() {
