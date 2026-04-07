@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import axios from "axios";
 import "./userPhotos.css";
-import fetchModel from "../../lib/fetchModelData";
 
 /**
  * Define UserPhotos, a React component of Project 4.
@@ -41,8 +41,8 @@ class UserPhotos extends React.Component {
     });
 
     Promise.all([
-      fetchModel(`/photosOfUser/${userId}`),
-      fetchModel(`/user/${userId}`),
+      axios.get(`/photosOfUser/${userId}`),
+      axios.get(`/user/${userId}`),
     ])
       .then(([photosResponse, userResponse]) => {
         this.setState({
@@ -52,12 +52,18 @@ class UserPhotos extends React.Component {
         });
 
         if (this.props.setTopBarContext && userResponse.data) {
-          this.props.setTopBarContext(`Photos of ${userResponse.data.first_name} ${userResponse.data.last_name}`);
+          this.props.setTopBarContext(
+            `Photos of ${userResponse.data.first_name} ${userResponse.data.last_name}`
+          );
         }
       })
       .catch((err) => {
+        const message =
+          err.response
+            ? `Failed to load photos: ${err.response.statusText || err.response.status}`
+            : `Failed to load photos: ${err.message || "Unknown error"}`;
         this.setState({
-          error: `Failed to load photos: ${err.statusText || "Unknown error"}`,
+          error: message,
           loading: false,
         });
       });
