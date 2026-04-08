@@ -46,7 +46,7 @@ const SchemaInfo = require("./schema/schemaInfo.js");
 
 // XXX - Your submission should work without this line. Comment out or delete
 // this line for tests and before submission!
-const models = require("./modelData/photoApp.js").models;
+// const models = require("./modelData/photoApp.js").models;
 mongoose.set("strictQuery", false);
 mongoose.connect("mongodb://127.0.0.1/project6", {
   useNewUrlParser: true,
@@ -99,7 +99,7 @@ app.get("/test/:p1", function (request, response) {
       }
 
       // We got the object - return it in JSON format.
-      console.log("SchemaInfo", info[0]);
+      // console.log("SchemaInfo", info[0]);
       response.end(JSON.stringify(info[0]));
     });
   } else if (param === "counts") {
@@ -143,7 +143,14 @@ app.get("/test/:p1", function (request, response) {
  * URL /user/list - Returns all the User objects.
  */
 app.get("/user/list", function (request, response) {
-  response.status(200).send(models.userListModel());
+  //response.status(200).send(models.userListModel());
+  User.find({}, "_id first_name last_name", function (err, users) {
+    if (err) {
+      response.status(500).send(err);
+      return;
+    }
+    response.status(200).send(users);
+  });
 });
 
 /**
@@ -189,6 +196,7 @@ app.get("/photosOfUser/:id", function (request, response) {
 
       photos.forEach(function (photo) {
         let photoObj = JSON.parse(JSON.stringify(photo));
+        photoObj.comments = photoObj.comments || [];
 
         let promises = photoObj.comments.map(function (comment) {
           return new Promise(function (resolve) {
