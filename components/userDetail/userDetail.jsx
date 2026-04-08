@@ -5,7 +5,7 @@ import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import './userDetail.css';
-import fetchModel from '../../lib/fetchModelData';
+import axios from 'axios';
 
 /**
  * UserDetail - Displays detailed information for a single user.
@@ -35,12 +35,16 @@ class UserDetail extends Component {
     }
 
     loadUser(userId) {
-        fetchModel(`/user/${userId}`).then((result) => {
-            const user = result.data;
+        axios.get(`/user/${userId}`)
+            .then((response) => {
+            const user = response.data;
             this.setState({ user });
             this.props.changeMainContent(
                 `${user.first_name} ${user.last_name}`
             );
+        })
+        .catch((err) => {
+            console.error('Error fetching user:', err);
         });
     }
 
