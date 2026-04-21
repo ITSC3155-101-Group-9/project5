@@ -1,24 +1,45 @@
 .topbar-appBar {
-    height: 64px;
+  height: 64px;
 }
- 
+
 .topbar-toolbar {
-    display: flex;
-    align-items: center;
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
- 
+
 .topbar-name {
-    margin-right: 24px;
-    font-weight: bold;
+  font-weight: bold;
+  white-space: nowrap;
 }
- 
+
 .topbar-context {
-    text-align: center;
-    flrx-grow: 1;
+  flex-grow: 1;
+  text-align: center;
 }
- 
+
 .topbar-version {
-    margin-left: 16px;
-    opacity: 0.85;
+  opacity: 0.85;
+  white-space: nowrap;
 }
- 
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.topbar-auth-text {
+  white-space: nowrap;
+}
+
+.topbar-button {
+  min-width: 100px;
+}
+
+.topbar-error {
+  margin-left: 8px;
+  max-width: 220px;
+  white-space: normal;
+  line-height: 1.2;
+}
