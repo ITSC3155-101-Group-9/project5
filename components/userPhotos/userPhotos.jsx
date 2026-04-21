@@ -109,7 +109,7 @@ class UserPhotos extends React.Component {
           <Link to={`/users/${comment.user._id}`} className="comment-user-link">
             {comment.user.first_name} {comment.user.last_name}
           </Link>
-          <span className="comment-date">{this.UserPhotos.formatDate(comment.date_time)}</span>
+          <span className="comment-date">{UserPhotos.formatDate(comment.date_time)}</span>
         </div>
         <p className="comment-text">{comment.comment}</p>
       </div>
