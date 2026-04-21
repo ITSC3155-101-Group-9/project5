@@ -3,7 +3,7 @@
 const mongoose = require("mongoose");
 
 /**
- * Define the Mongoose Schema for a Comment.
+ * Mongoose schema for User.
  */
 const userSchema = new mongoose.Schema({
   first_name: String,
@@ -11,14 +11,16 @@ const userSchema = new mongoose.Schema({
   location: String,
   description: String,
   occupation: String,
+  login_name: String,
+  password: String,
 });
 
-/**
- * Create a Mongoose Model for a User using the userSchema.
- */
+userSchema.virtual("full_name").get(function () {
+  return `${this.first_name} ${this.last_name}`;
+});
+
+userSchema.set("toJSON", { virtuals: true });
+
 const User = mongoose.model("User", userSchema);
 
-/**
- * Make this available to our application.
- */
 module.exports = User;
