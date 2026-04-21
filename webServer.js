@@ -1,276 +1,367 @@
-/**
- * This builds on the webServer of previous projects in that it exports the
- * current directory via webserver listing on a hard code (see portno below)
- * port. It also establishes a connection to the MongoDB named 'project6'.
- *
- * To start the webserver run the command:
- *    node webServer.js
- *
- * Note that anyone able to connect to localhost:portNo will be able to fetch
- * any file accessible to the current user in the current directory or any of
- * its children.
- *
- * This webServer exports the following URLs:
- * /            - Returns a text status message. Good for testing web server
- *                running.
- * /test        - Returns the SchemaInfo object of the database in JSON format.
- *                This is good for testing connectivity with MongoDB.
- * /test/info   - Same as /test.
- * /test/counts - Returns the population counts of the cs collections in the
- *                database. Format is a JSON object with properties being the
- *                collection name and the values being the counts.
- *
- * The following URLs need to be changed to fetch there reply values from the
- * database:
- * /user/list         - Returns an array containing all the User objects from
- *                      the database (JSON format).
- * /user/:id          - Returns the User object with the _id of id (JSON
- *                      format).
- * /photosOfUser/:id  - Returns an array with all the photos of the User (id).
- *                      Each photo should have all the Comments on the Photo
- *                      (JSON format).
+"use strict";
+
+/*
+ * Photo App web server.
  */
 
-const mongoose = require("mongoose");
-mongoose.Promise = require("bluebird");
-
-const async = require("async");
-
+const fs = require("fs");
+const path = require("path");
 const express = require("express");
-const app = express();
+const mongoose = require("mongoose");
+const session = require("express-session");
+const bodyParser = require("body-parser");
+const multer = require("multer");
 
-app.use(express.json());
-
-// Load the Mongoose schema for User, Photo, and SchemaInfo
+// Adjust these paths only if your project structure is different.
 const User = require("./schema/user.js");
 const Photo = require("./schema/photo.js");
 const SchemaInfo = require("./schema/schemaInfo.js");
 
-// XXX - Your submission should work without this line. Comment out or delete
-// this line for tests and before submission!
-// const models = require("./modelData/photoApp.js").models;
+const app = express();
+
+// ===============================
+// MongoDB
+// ===============================
+mongoose.Promise = global.Promise;
 mongoose.set("strictQuery", false);
-mongoose.connect("mongodb://127.0.0.1/project6", {
+mongoose.connect("mongodb://127.0.0.1/cs3155", {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });
 
-// We have the express static module
-// (http://expressjs.com/en/starter/static-files.html) do all the work for us.
-app.use(express.static(__dirname));
+// ===============================
+// Middleware
+// ===============================
+app.use(express.static(path.join(__dirname)));
+app.use(
+  session({
+    secret: "secretKey",
+    resave: false,
+    saveUninitialized: false,
+  })
+);
+app.use(bodyParser.json());
 
-app.get("/", function (request, response) {
-  response.send("Simple web server of files from " + __dirname);
-});
+// Multer for photo upload
+const processFormBody = multer({
+  storage: multer.memoryStorage(),
+}).single("uploadedphoto");
 
-/**
- * Use express to handle argument passing in the URL. This .get will cause
- * express to accept URLs with /test/<something> and return the something in
- * request.params.p1.
- * 
- * If implement the get as follows:
- * /test        - Returns the SchemaInfo object of the database in JSON format.
- *                This is good for testing connectivity with MongoDB.
- * /test/info   - Same as /test.
- * /test/counts - Returns an object with the counts of the different collections
- *                in JSON format.
- */
-app.get("/test/:p1", function (request, response) {
-  // Express parses the ":p1" from the URL and returns it in the request.params
-  // objects.
-  console.log("/test called with param1 = ", request.params.p1);
+// ===============================
+// Helper: auth guard
+// ===============================
+function requireLogin(request, response, next) {
+  if (!request.session.user_id) {
+    response.status(401).send("Unauthorized");
+    return;
+  }
+  next();
+}
 
-  const param = request.params.p1 || "info";
+// Public routes that do NOT require login:
+// POST /admin/login
+// POST /admin/logout
+// POST /user
+//
+// Everything else below uses requireLogin where needed.
 
-  if (param === "info") {
-    // Fetch the SchemaInfo. There should only one of them. The query of {} will
-    // match it.
-    SchemaInfo.find({}, function (err, info) {
-      if (err) {
-        // Query returned an error. We pass it back to the browser with an
-        // Internal Service Error (500) error code.
-        console.error("Error in /user/info:", err);
-        response.status(500).send(JSON.stringify(err));
-        return;
-      }
-      if (info.length === 0) {
-        // Query didn't return an error but didn't find the SchemaInfo object -
-        // This is also an internal error return.
-        response.status(500).send("Missing SchemaInfo");
-        return;
-      }
+// ===============================
+// Admin/Login/Logout
+// ===============================
+app.post("/admin/login", async function (request, response) {
+  try {
+    const loginName = request.body.login_name;
+    const password = request.body.password;
 
-      // We got the object - return it in JSON format.
-      // console.log("SchemaInfo", info[0]);
-      response.end(JSON.stringify(info[0]));
+    if (!loginName || !password) {
+      response.status(400).send("Missing login_name or password");
+      return;
+    }
+
+    const user = await User.findOne({ login_name: loginName });
+
+    if (!user) {
+      response.status(400).send("Login failed: user not found");
+      return;
+    }
+
+    if (user.password !== password) {
+      response.status(400).send("Login failed: incorrect password");
+      return;
+    }
+
+    request.session.user_id = user._id;
+    request.session.login_name = user.login_name;
+
+    response.status(200).send({
+      _id: user._id,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      login_name: user.login_name,
     });
-  } else if (param === "counts") {
-    // In order to return the counts of all the collections we need to do an
-    // async call to each collections. That is tricky to do so we use the async
-    // package do the work. We put the collections into array and use async.each
-    // to do each .count() query.
-    const collections = [
-      { name: "user", collection: User },
-      { name: "photo", collection: Photo },
-      { name: "schemaInfo", collection: SchemaInfo },
-    ];
-    async.each(
-      collections,
-      function (col, done_callback) {
-        col.collection.countDocuments({}, function (err, count) {
-          col.count = count;
-          done_callback(err);
-        });
-      },
-      function (err) {
-        if (err) {
-          response.status(500).send(JSON.stringify(err));
-        } else {
-          const obj = {};
-          for (let i = 0; i < collections.length; i++) {
-            obj[collections[i].name] = collections[i].count;
-          }
-          response.end(JSON.stringify(obj));
-        }
-      }
-    );
-  } else {
-    // If we know understand the parameter we return a (Bad Parameter) (400)
-    // status.
-    response.status(400).send("Bad param " + param);
+  } catch (err) {
+    response.status(500).send(`Login error: ${err}`);
   }
 });
 
-/**
- * URL /user/list - Returns all the User objects.
- */
-app.get("/user/list", function (request, response) {
-  //response.status(200).send(models.userListModel());
-  User.find({}, "_id first_name last_name", function (err, users) {
+app.post("/admin/logout", function (request, response) {
+  if (!request.session.user_id) {
+    response.status(400).send("No user is currently logged in");
+    return;
+  }
+
+  request.session.destroy(function (err) {
     if (err) {
-      response.status(500).send(err);
+      response.status(500).send("Logout failed");
       return;
     }
-    response.status(200).send(users);
+    response.status(200).send("Logged out");
   });
 });
 
-/**
- * URL /user/:id - Returns the information for User (id).
- */
-app.get("/user/:id", function (request, response) {
-  const id = request.params.id;
-  User.findById(id, "_id first_name last_name location description occupation", function (err, user) {
-    if (err || !user) {
-      console.log("User with _id:" + id + " not found.");
-      response.status(400).send("Not found");
+// ===============================
+// Registration
+// ===============================
+app.post("/user", async function (request, response) {
+  try {
+    const {
+      login_name: loginName,
+      password,
+      first_name: firstName,
+      last_name: lastName,
+      location,
+      description,
+      occupation,
+    } = request.body;
+
+    if (!loginName || loginName.trim() === "") {
+      response.status(400).send("login_name is required");
       return;
     }
-    response.status(200).send(user);
-  }); 
+
+    if (!password || password.trim() === "") {
+      response.status(400).send("password is required");
+      return;
+    }
+
+    if (!firstName || firstName.trim() === "") {
+      response.status(400).send("first_name is required");
+      return;
+    }
+
+    if (!lastName || lastName.trim() === "") {
+      response.status(400).send("last_name is required");
+      return;
+    }
+
+    const existingUser = await User.findOne({ login_name: loginName.trim() });
+
+    if (existingUser) {
+      response.status(400).send("login_name already exists");
+      return;
+    }
+
+    const newUser = new User({
+      login_name: loginName.trim(),
+      password: password.trim(),
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
+      location: location ? location.trim() : "",
+      description: description ? description.trim() : "",
+      occupation: occupation ? occupation.trim() : "",
+    });
+
+    await newUser.save();
+
+    response.status(200).send({
+      _id: newUser._id,
+      first_name: newUser.first_name,
+      last_name: newUser.last_name,
+      login_name: newUser.login_name,
+    });
+  } catch (err) {
+    response.status(500).send(`Registration error: ${err}`);
+  }
 });
 
-/**
- * URL /photosOfUser/:id - Returns the Photos for User (id).
- */
-app.get("/photosOfUser/:id", function (request, response) {
-  const id = request.params.id;
-  
-  User.findById(id, function (err, user) {
-    if (err || !user) {
-      console.log("User with _id:" + id + " not found.");
-      response.status(400).send("Not found");
+// ===============================
+// Schema info
+// ===============================
+app.get("/test/info", requireLogin, async function (request, response) {
+  try {
+    const info = await SchemaInfo.findOne({});
+    response.status(200).send(info);
+  } catch (err) {
+    response.status(500).send(`Error in /test/info: ${err}`);
+  }
+});
+
+// ===============================
+// User list
+// ===============================
+app.get("/user/list", requireLogin, async function (request, response) {
+  try {
+    const users = await User.find({}, "_id first_name last_name");
+    response.status(200).send(users);
+  } catch (err) {
+    response.status(500).send(`Error in /user/list: ${err}`);
+  }
+});
+
+// ===============================
+// User detail
+// ===============================
+app.get("/user/:id", requireLogin, async function (request, response) {
+  try {
+    const user = await User.findById(request.params.id, {
+      _id: 1,
+      first_name: 1,
+      last_name: 1,
+      location: 1,
+      description: 1,
+      occupation: 1,
+    });
+
+    if (!user) {
+      response.status(400).send("User not found");
       return;
     }
 
-    Photo.find({ user_id: id }, function (photoErr, photos) {
-      if (photoErr) {
-        response.status(500).send(photoErr);
-      return;
-      }
+    response.status(200).send(user);
+  } catch (err) {
+    response.status(500).send(`Error in /user/:id: ${err}`);
+  }
+});
 
-      if (!photos || photos.length === 0) {
-        response.status(200).send([]);
+// ===============================
+// Photos of user
+// ===============================
+app.get("/photosOfUser/:id", requireLogin, async function (request, response) {
+  try {
+    const photos = await Photo.find({ user_id: request.params.id });
+
+    const result = await Promise.all(
+      photos.map(async (photo) => {
+        const comments = await Promise.all(
+          (photo.comments || []).map(async (comment) => {
+            const commentUser = await User.findById(comment.user_id, "_id first_name last_name");
+
+            return {
+              _id: comment._id,
+              comment: comment.comment,
+              date_time: comment.date_time,
+              user: commentUser
+                ? {
+                    _id: commentUser._id,
+                    first_name: commentUser.first_name,
+                    last_name: commentUser.last_name,
+                  }
+                : null,
+            };
+          })
+        );
+
+        return {
+          _id: photo._id,
+          user_id: photo.user_id,
+          file_name: photo.file_name,
+          date_time: photo.date_time,
+          comments,
+        };
+      })
+    );
+
+    response.status(200).send(result);
+  } catch (err) {
+    response.status(500).send(`Error in /photosOfUser/:id: ${err}`);
+  }
+});
+
+// ===============================
+// Add comment to photo
+// ===============================
+app.post("/commentsOfPhoto/:photo_id", requireLogin, async function (request, response) {
+  try {
+    const commentText = request.body.comment;
+
+    if (!commentText || commentText.trim() === "") {
+      response.status(400).send("Comment cannot be empty");
+      return;
+    }
+
+    const photo = await Photo.findById(request.params.photo_id);
+
+    if (!photo) {
+      response.status(400).send("Photo not found");
+      return;
+    }
+
+    const newComment = {
+      comment: commentText.trim(),
+      date_time: new Date(),
+      user_id: request.session.user_id,
+    };
+
+    if (!photo.comments) {
+      photo.comments = [];
+    }
+
+    photo.comments.push(newComment);
+    await photo.save();
+
+    response.status(200).send(photo);
+  } catch (err) {
+    response.status(500).send(`Error in /commentsOfPhoto/:photo_id: ${err}`);
+  }
+});
+
+// ===============================
+// Upload new photo
+// ===============================
+app.post("/photos/new", requireLogin, function (request, response) {
+  processFormBody(request, response, async function (err) {
+    try {
+      if (err || !request.file) {
+        response.status(400).send("No file uploaded");
         return;
       }
 
-      let result = [];
+      if (!request.file.mimetype.startsWith("image/")) {
+        response.status(400).send("Uploaded file must be an image");
+        return;
+      }
 
-      photos.forEach(function (photo) {
-        let photoObj = JSON.parse(JSON.stringify(photo));
-        delete photoObj.__v;
-        photoObj.comments = photoObj.comments || [];
+      const timestamp = new Date().valueOf();
+      const filename = "U" + String(timestamp) + request.file.originalname;
 
-        let promises = photoObj.comments.map(function (comment) {
-          return new Promise(function (resolve) {
-            User.findById(comment.user_id, function (commentErr, commentUser) {
-              if (commentUser) {
-                comment.user = {
-                  _id: commentUser._id,
-                  first_name: commentUser.first_name,
-                  last_name: commentUser.last_name,
-                };
-              }
-              delete comment.user_id;
-              resolve();
-            });
-          });
+      const imagePath = path.join(__dirname, "images", filename);
+
+      fs.writeFile(imagePath, request.file.buffer, async function (writeErr) {
+        if (writeErr) {
+          response.status(500).send("Failed to save uploaded file");
+          return;
+        }
+
+        const newPhoto = new Photo({
+          file_name: filename,
+          date_time: new Date(),
+          user_id: request.session.user_id,
+          comments: [],
         });
-        Promise.all(promises).then(function () {
-          result.push(photoObj);
-          if (result.length === photos.length) {
-            response.status(200).send(result);
-          }
-        });
+
+        await newPhoto.save();
+        response.status(200).send(newPhoto);
       });
-    });
+    } catch (saveErr) {
+      response.status(500).send(`Error in /photos/new: ${saveErr}`);
+    }
   });
 });
 
-/**
-  * POST add comment
-  */
- app.post("/commentsOfPhoto/:photo_id", function (request, response) {
-   const photo_id = request.params.photo_id;
-   const comment = request.body.comment;
-
-   if (!comment || comment.trim() === "") {
-     response.status(400).send("Comment is empty");
-     return;
-   }
-
-   Photo.findById(photo_id, function (err, photo) {
-     if (err || !photo) {
-       response.status(400).send("Photo not found");
-       return;
-     }
-
-     // TEMP (until login is done)
-     const userId = photo.user_id;
-
-     photo.comments.push({
-       comment: comment,
-       date_time: new Date(),
-       user_id: userId,
-     });
-
-     photo.save(function (err) {
-       if (err) {
-         response.status(500).send(err);
-         return;
-       }
-       response.status(200).send("Comment added");
-     });
-   });
- });
-
-
+// ===============================
+// Start server
+// ===============================
 const server = app.listen(3000, function () {
   const port = server.address().port;
-  console.log(
-    "Listening at http://localhost:" +
-      port +
-      " exporting the directory " +
-      __dirname
-  );
+  console.log(`Listening at http://localhost:${port}`);
 });
