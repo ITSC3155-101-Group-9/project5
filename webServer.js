@@ -39,6 +39,8 @@ const async = require("async");
 const express = require("express");
 const app = express();
 
+app.use(express.json());
+
 // Load the Mongoose schema for User, Photo, and SchemaInfo
 const User = require("./schema/user.js");
 const Photo = require("./schema/photo.js");
@@ -224,6 +226,44 @@ app.get("/photosOfUser/:id", function (request, response) {
     });
   });
 });
+
+/**
+  * POST add comment
+  */
+ app.post("/commentsOfPhoto/:photo_id", function (request, response) {
+   const photo_id = request.params.photo_id;
+   const comment = request.body.comment;
+
+   if (!comment || comment.trim() === "") {
+     response.status(400).send("Comment is empty");
+     return;
+   }
+
+   Photo.findById(photo_id, function (err, photo) {
+     if (err || !photo) {
+       response.status(400).send("Photo not found");
+       return;
+     }
+
+     // TEMP (until login is done)
+     const userId = photo.user_id;
+
+     photo.comments.push({
+       comment: comment,
+       date_time: new Date(),
+       user_id: userId,
+     });
+
+     photo.save(function (err) {
+       if (err) {
+         response.status(500).send(err);
+         return;
+       }
+       response.status(200).send("Comment added");
+     });
+   });
+ });
+
 
 const server = app.listen(3000, function () {
   const port = server.address().port;
