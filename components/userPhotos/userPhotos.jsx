@@ -14,6 +14,7 @@ class UserPhotos extends React.Component {
       user: null,
       loading: true,
       error: "",
+      commentText: {}
     };
   }
 
@@ -73,6 +74,30 @@ class UserPhotos extends React.Component {
     return new Date(dateString).toLocaleString();
   }
 
+  handleComment = (photoId) => {
+    const text = this.state.commentText[photoId];
+
+    if (!text || text.trim() === "") {
+      return; /* prevent empty comments */
+    }
+
+    axios
+      .post(`/commentsOfPhoto/${photoId}`, {
+        comment: text,
+      })
+      .then(() => {
+        this.setState({
+          commentText: {
+            ...this.state.commentText,
+            [photoId]: "" /* clear only this photo input */
+          }
+        });
+        this.loadUserPhotos(); /* refresh */
+      })
+      .catch((err) => console.log(err));
+  };
+
+  
   renderComments(comments) {
     if (!comments || comments.length === 0) {
       return <p className="no-comments">No comments yet.</p>;
@@ -125,7 +150,7 @@ class UserPhotos extends React.Component {
 
               <div className="photo-meta">
                 <span className="photo-date">
-                  Posted: {this.UserPhotos.formatDate(photo.date_time)}
+                  Posted: {UserPhotos.formatDate(photo.date_time)}
                 </span>
               </div>
 
@@ -133,6 +158,26 @@ class UserPhotos extends React.Component {
                 <h3>Comments</h3>
                 {this.renderComments(photo.comments)}
               </div>
+              {/* comment input added */}
+              <div className="comment-box">
+                <input
+                  type="text"
+                  placeholder="Add comment..."
+                  value={this.state.commentText[photo._id] || ""}
+                  onChange={(e) =>
+                    this.setState({
+                      commentText: {
+                        ...this.state.commentText,
+                        [photo._id]: e.target.value
+                      }
+                    })
+                  }
+                />
+                <button onClick={() => this.handleComment(photo._id)}>
+                  Post
+                </button>
+              </div>
+
             </div>
           ))
         )}
