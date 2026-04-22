@@ -18,7 +18,7 @@
 const mongoose = require("mongoose");
 mongoose.Promise = require("bluebird");
 mongoose.set("strictQuery", false);
-mongoose.connect("mongodb://127.0.0.1/project6", {
+mongoose.connect("mongodb://127.0.0.1/cs3155", {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });
@@ -55,6 +55,8 @@ Promise.all(removePromises)
         location: user.location,
         description: user.description,
         occupation: user.occupation,
+        login_name: user.last_name.toLowerCase(),
+        password: "weak",  
       })
         .then(function (userObj) {
           // Set the unique ID of the object. We use the MongoDB generated _id

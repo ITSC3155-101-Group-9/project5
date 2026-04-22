@@ -1,5 +1,3 @@
-"use strict";
-
 /*
  * Photo App web server.
  */
@@ -213,6 +211,12 @@ app.get("/user/list", requireLogin, async function (request, response) {
 // ===============================
 app.get("/user/:id", requireLogin, async function (request, response) {
   try {
+    // ADD THIS:
+    if (!mongoose.Types.ObjectId.isValid(request.params.id)) {
+      response.status(400).send("Invalid user ID");
+      return;
+    }
+
     const user = await User.findById(request.params.id, {
       _id: 1,
       first_name: 1,
@@ -229,7 +233,7 @@ app.get("/user/:id", requireLogin, async function (request, response) {
 
     response.status(200).send(user);
   } catch (err) {
-    response.status(500).send(`Error in /user/:id: ${err}`);
+    response.status(400).send(`Error in /user/:id: ${err}`); // CHANGE 500 to 400
   }
 });
 
@@ -238,6 +242,11 @@ app.get("/user/:id", requireLogin, async function (request, response) {
 // ===============================
 app.get("/photosOfUser/:id", requireLogin, async function (request, response) {
   try {
+    if (!mongoose.Types.ObjectId.isValid(request.params.id)) {
+      response.status(400).send("Invalid photo ID");
+      return;
+    }
+
     const photos = await Photo.find({ user_id: request.params.id });
 
     const result = await Promise.all(
@@ -273,7 +282,7 @@ app.get("/photosOfUser/:id", requireLogin, async function (request, response) {
 
     response.status(200).send(result);
   } catch (err) {
-    response.status(500).send(`Error in /photosOfUser/:id: ${err}`);
+    response.status(400).send(`Error in /photosOfUser/:id: ${err}`);
   }
 });
 

@@ -98,7 +98,7 @@ class UserPhotos extends React.Component {
   };
 
   
-  renderComments(comments) {
+  static renderComments(comments) {
     if (!comments || comments.length === 0) {
       return <p className="no-comments">No comments yet.</p>;
     }
@@ -156,7 +156,7 @@ class UserPhotos extends React.Component {
 
               <div className="comments-section">
                 <h3>Comments</h3>
-                {this.renderComments(photo.comments)}
+                {UserPhotos.renderComments(photo.comments)}
               </div>
               {/* comment input added */}
               <div className="comment-box">
@@ -164,14 +164,7 @@ class UserPhotos extends React.Component {
                   type="text"
                   placeholder="Add comment..."
                   value={this.state.commentText[photo._id] || ""}
-                  onChange={(e) =>
-                    this.setState({
-                      commentText: {
-                        ...this.state.commentText,
-                        [photo._id]: e.target.value
-                      }
-                    })
-                  }
+                  onChange={(e) => this.setState({ commentText: { ...this.state.commentText, [photo._id]: e.target.value } })}
                 />
                 <button onClick={() => this.handleComment(photo._id)}>
                   Post

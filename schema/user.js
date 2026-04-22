@@ -15,12 +15,6 @@ const userSchema = new mongoose.Schema({
   password: String,
 });
 
-userSchema.virtual("full_name").get(function () {
-  return `${this.first_name} ${this.last_name}`;
-});
-
-userSchema.set("toJSON", { virtuals: true });
-
 const User = mongoose.model("User", userSchema);
 
 module.exports = User;
