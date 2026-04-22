@@ -143,7 +143,7 @@ class UserPhotos extends React.Component {
           photos.map((photo) => (
             <div key={photo._id} className="photo-card">
               <img
-                src={`../../images/${photo.file_name}`}
+                src={`/images/${photo.file_name}`}
                 alt="User upload"
                 className="photo-image"
               />
