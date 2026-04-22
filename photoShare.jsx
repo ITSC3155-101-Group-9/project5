@@ -27,6 +27,7 @@ class PhotoShare extends React.Component {
       currentUser: null,
       mainContent: "",
       photoUploadMessage: "",
+      photoRefreshKey: 0,
     };
   }
 
@@ -71,9 +72,10 @@ class PhotoShare extends React.Component {
 
     await axios.post("/photos/new", domForm);
 
-    this.setState({
+    this.setState(prev => ({
       photoUploadMessage: "Photo uploaded successfully.",
-    });
+      photoRefreshKey: prev.photoRefreshKey + 1,
+    }));
 
     if (this.state.currentUser && this.state.currentUser._id) {
       window.location.hash = `#/photos/${this.state.currentUser._id}`;
@@ -102,6 +104,7 @@ class PhotoShare extends React.Component {
               main_content={mainContent}
               onLogout={this.handleLogout}
               onPhotoUpload={this.handlePhotoUpload}
+              uploadMessage={this.state.photoUploadMessage}
             />
           </Grid>
 
@@ -147,6 +150,7 @@ class PhotoShare extends React.Component {
                   path="/photos/:userId"
                   render={(props) => this.renderProtectedRoute(() => (
                     <UserPhotos
+                      key={this.state.photoRefreshKey}
                       {...props}
                       setTopBarContext={this.changeMainContent}
                     />
