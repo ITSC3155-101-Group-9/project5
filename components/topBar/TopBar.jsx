@@ -85,7 +85,7 @@ class TopBar extends Component {
   };
 
   renderAuthSection() {
-    const { currentUser, onLogout } = this.props;
+    const { currentUser, onLogout, uploadMessage } = this.props;
     const { uploadError, uploading } = this.state;
 
     if (!currentUser) {
@@ -136,6 +136,13 @@ class TopBar extends Component {
             {uploadError}
           </Typography>
         ) : null}
+
+        {uploadMessage ? (
+          <Typography variant="body2" className="topbar-success">
+            {uploadMessage}
+          </Typography>
+        ) : null}
+        
       </Box>
     );
   }
