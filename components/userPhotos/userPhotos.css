@@ -114,3 +114,25 @@
 .comment-box button:hover {
   background-color: #125ea2;
 }
+
+.like-section {
+  margin: 10px 0;
+}
+
+.like-btn {
+  background: #eee;
+  border: none;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.liked-btn {
+  background: #ffcccc;
+  border: none;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.like-count {
+  margin-left: 10px;
+}
