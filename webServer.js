@@ -269,10 +269,7 @@ app.get("/photosOfUser/:id", requireLogin, async function (request, response) {
           likes: photo.likes || [],
           likesCount: photo.likes ? photo.likes.length : 0,
           userLiked: photo.likes
-            ? photo.likes.some(
-                (id) =>
-                  id.toString() === request.session.user_id.toString()
-              )
+            ? photo.likes.some((id) => id.toString() === request.session.user_id.toString())
             : false,
         };
       })
