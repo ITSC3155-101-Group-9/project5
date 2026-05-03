@@ -4,15 +4,16 @@ Please fill in this form and submit it with your final project.
 
 Enter the user stories that your team worked on. For each story include the following information:
 
-Story number and name:
-Story points:
+Story number and name: 6 - Photo Like Votes
+Story points: 4
 Brief description to see the story in action:
+Push button labeled "Like" to interact with photo post.
 
-Total Story Points:
+Total Story Points: 4
 
 Any special instructions for grading (it should be easy for someone to run your
 app from a new machine):
-
+None
 ************************************ Example ***********************************
 * As an example: if you did only story 5, your file would look like:
 * 
