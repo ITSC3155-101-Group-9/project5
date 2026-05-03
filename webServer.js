@@ -242,11 +242,6 @@ app.get("/user/:id", requireLogin, async function (request, response) {
 // ===============================
 app.get("/photosOfUser/:id", requireLogin, async function (request, response) {
   try {
-    if (!mongoose.Types.ObjectId.isValid(request.params.id)) {
-      response.status(400).send("Invalid photo ID");
-      return;
-    }
-
     const photos = await Photo.find({ user_id: request.params.id });
 
     const result = await Promise.all(
@@ -260,12 +255,6 @@ app.get("/photosOfUser/:id", requireLogin, async function (request, response) {
               comment: comment.comment,
               date_time: comment.date_time,
               user: commentUser
-                ? {
-                    _id: commentUser._id,
-                    first_name: commentUser.first_name,
-                    last_name: commentUser.last_name,
-                  }
-                : null,
             };
           })
         );
@@ -276,6 +265,15 @@ app.get("/photosOfUser/:id", requireLogin, async function (request, response) {
           file_name: photo.file_name,
           date_time: photo.date_time,
           comments,
+          // NEW LIKE DATA
+          likes: photo.likes || [],
+          likesCount: photo.likes ? photo.likes.length : 0,
+          userLiked: photo.likes
+            ? photo.likes.some(
+                (id) =>
+                  id.toString() === request.session.user_id.toString()
+              )
+            : false,
         };
       })
     );
@@ -285,7 +283,46 @@ app.get("/photosOfUser/:id", requireLogin, async function (request, response) {
     response.status(400).send(`Error in /photosOfUser/:id: ${err}`);
   }
 });
+// ===============================
+// Like / Unlike Photo (NEW)
+// ===============================
+app.post("/photos/:photoId/like", requireLogin, async function (request, response) {
+  try {
+    const photo = await Photo.findById(request.params.photoId);
 
+    if (!photo) {
+      response.status(400).send("Photo not found");
+      return;
+    }
+
+    if (!photo.likes) {
+      photo.likes = [];
+    }
+
+    const userId = request.session.user_id;
+
+    const alreadyLiked = photo.likes.some(
+      (id) => id.toString() === userId.toString()
+    );
+
+    if (alreadyLiked) {
+      photo.likes = photo.likes.filter(
+        (id) => id.toString() !== userId.toString()
+      );
+    } else {
+      photo.likes.push(userId);
+    }
+
+    await photo.save();
+
+    response.status(200).send({
+      likesCount: photo.likes.length,
+      liked: !alreadyLiked,
+    });
+  } catch (err) {
+    response.status(500).send(err);
+  }
+});
 // ===============================
 // Add comment to photo
 // ===============================
