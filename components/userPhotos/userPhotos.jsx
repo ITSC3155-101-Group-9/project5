@@ -96,6 +96,28 @@ class UserPhotos extends React.Component {
       })
       .catch((err) => console.log(err));
   };
+  
+  //  NEW: Like / Unlike handler
+  handleLike = (photoId) => {
+    axios.post(`/photos/${photoId}/like`)
+      .then((res) => {
+        const { likesCount, liked } = res.data;
+
+        const updatedPhotos = this.state.photos.map((photo) => {
+          if (photo._id === photoId) {
+            return {
+              ...photo,
+              likesCount,
+              userLiked: liked
+            };
+          }
+          return photo;
+        });
+
+        this.setState({ photos: updatedPhotos });
+      })
+      .catch((err) => console.log(err));
+  };
 
   
   static renderComments(comments) {
@@ -153,6 +175,22 @@ class UserPhotos extends React.Component {
                   Posted: {UserPhotos.formatDate(photo.date_time)}
                 </span>
               </div>
+              
+              {/*  LIKE BUTTON */}
+              <div className="like-section">
+                <button
+                  onClick={() => this.handleLike(photo._id)}
+                  className={photo.userLiked ? "liked-btn" : "like-btn"}
+                >
+                  {photo.userLiked ? "Unlike ❤️" : "Like 🤍"}
+                </button>
+
+                <span className="like-count">
+                  {photo.likesCount || 0} Likes
+                </span>
+              </div>
+
+          
 
               <div className="comments-section">
                 <h3>Comments</h3>
